@@ -100,7 +100,7 @@ class SelectorBIC(ModelSelector):
                     best_n = n
                     bestBIC = BIC
             except:
-                continue
+                pass
 
         return self.base_model(best_n)
 
@@ -130,8 +130,32 @@ class SelectorCV(ModelSelector):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
         # TODO implement model selection using CV
+        split_method = KFold(n_splits=min(len(self.lengths), 3))
+        
+        best_avg_logL = float("-inf");
+        best_n = None;
 
-        # helper function mentioned:
-        #    asl_utils.combine_sequences
+        for n in range(self.min_n_components, self.max_n_components + 1):
+            logLs = [];
+            for cv_train_idx, cv_test_idx in split_method.split(self.sequences):
+                train_X, train_lengths = combine_sequences(cv_train_idx, self.sequences)
 
-        raise NotImplementedError
+                try:
+                    model = GaussianHMM(n_components=n, covariance_type="diag", n_iter=1000, 
+                                        random_state=self.random_state, verbose=False).fit(train_X, train_lengths)
+                    logL = model.score(train_X, train_lengths)
+                    logLs.append(logL)
+                
+                except:
+                    pass
+
+            if logLs:
+                avg_logL = np.mean(logLs)
+            else:
+                avg_logL = float("-inf")
+
+            if (avg_logL > best_avg_logL):
+                best_avg_logL = avg_logL
+                best_n = n
+     
+        return self.base_model(best_n)
