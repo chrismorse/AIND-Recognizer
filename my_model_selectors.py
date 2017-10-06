@@ -73,9 +73,6 @@ class SelectorBIC(ModelSelector):
     N = number of data points
 
     The lower the value the better the model.
-
-
-
     """
 
     def select(self):
@@ -89,39 +86,23 @@ class SelectorBIC(ModelSelector):
         # TODO implement model selection based on BIC scores
 
         bestBIC = float("inf")
-        bestModel = None
-        
-        print("self.X[0]", self.X[0])
-        print("lengths", self.lengths)
-        n = len(self.lengths)   # num_of_states
-        logN = np.log(n)
+        best_n = None
 
-        for d in range(self.min_n_components, self.max_n_components + 1):
+        for n in range(self.min_n_components, self.max_n_components + 1):
             try:
-                model = GaussianHMM(n_components=d, n_iter=1000).fit(self.X, self.lengths)
+                model = self.base_model(n)
                 logL = model.score(self.X, self.lengths)
 
-                # n = num_states
-                # d = num_of_features
-                # parameter = n ** 2 + 2 * n * d -1
-                n = len(self.lengths)
-                p = n ** 2 + 2 * n * d - 1 
-
-
-                BIC = -2 * logL + p * logN
-                print("d",d)
-                print("logL",logL)
-                print("BIC", BIC)
-                print(" ")
-                
+                p = n * n + 2 * len(self.X[0]) * n - 1
+                BIC = -2 * logL + p * np.log(len(self.X[0]))
 
                 if BIC < bestBIC:
-                    bestModel = model
+                    best_n = n
                     bestBIC = BIC
             except:
                 continue
 
-        return bestModel
+        return self.base_model(best_n)
 
 class SelectorDIC(ModelSelector):
     ''' select best model based on Discriminative Information Criterion
