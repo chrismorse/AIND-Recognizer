@@ -127,7 +127,7 @@ class SelectorDIC(ModelSelector):
             try:
                 model = self.base_model(n)
                 logL = model.score(self.X, self.lengths)
-                print(self.this_word, n)
+                #print(self.this_word, n)
 
                 other_logLs = []
                 for word, features in self.hwords.items():
@@ -144,15 +144,15 @@ class SelectorDIC(ModelSelector):
                     avg_other_logL = np.mean(other_logLs)
 
                     DIC = logL - avg_other_logL
-                    print("DIC", DIC)
+                    #print("DIC", DIC)
                     if DIC > bestDIC:
                         best_n = n
                         bestDIC = DIC
                     
 
             except Exception as e:
-                print("Error: {}".format(e))
-                #pass
+                #print("Error: {}".format(e))
+                pass
 
 
 
@@ -166,34 +166,36 @@ class SelectorCV(ModelSelector):
 
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
-
         # TODO implement model selection using CV
-        split_method = KFold(n_splits=min(len(self.lengths), 3))
-        
-        best_avg_logL = float("-inf");
-        best_n = None;
 
-        for n in range(self.min_n_components, self.max_n_components + 1):
-            logLs = [];
-            for cv_train_idx, cv_test_idx in split_method.split(self.sequences):
-                train_X, train_lengths = combine_sequences(cv_train_idx, self.sequences)
+        best_avg_logL = float("-inf")
+        best_n = None
 
-                try:
-                    model = GaussianHMM(n_components=n, covariance_type="diag", n_iter=1000, 
-                                        random_state=self.random_state, verbose=False).fit(train_X, train_lengths)
+        try:
+
+            split_method = KFold(n_splits=min(len(self.lengths), 3))
+            
+
+            for n in range(self.min_n_components, self.max_n_components + 1):
+                logLs = []
+                for cv_train_idx, cv_test_idx in split_method.split(self.sequences):
+                    train_X, train_lengths = combine_sequences(cv_train_idx, self.sequences)
+                    model = GaussianHMM(n_components=n, covariance_type="diag", n_iter=1000, random_state=self.random_state, verbose=False).fit(train_X, train_lengths)
                     logL = model.score(train_X, train_lengths)
                     logLs.append(logL)
-                
-                except:
-                    pass
+                    
+                if logLs:
+                    avg_logL = np.mean(logLs)
+                else:
+                    avg_logL = float("-inf")
 
-            if logLs:
-                avg_logL = np.mean(logLs)
-            else:
-                avg_logL = float("-inf")
-
-            if (avg_logL > best_avg_logL):
-                best_avg_logL = avg_logL
-                best_n = n
+                if (avg_logL > best_avg_logL):
+                    best_avg_logL = avg_logL
+                    best_n = n
      
+
+        except Exception as e:
+            #print("Error: {}".format(e))
+            pass
+
         return self.base_model(best_n)
